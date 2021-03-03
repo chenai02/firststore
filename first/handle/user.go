@@ -119,6 +119,7 @@ func UserInfoHandle(w http.ResponseWriter, r *http.Request){
 		//1.解析请求参数
 		r.ParseForm()
 		username := r.Form.Get("username")
+		//fmt.Println("username:", username)
 		//token := r.Form.Get("token")
 		//fmt.Println(username)
 		////2.验证token

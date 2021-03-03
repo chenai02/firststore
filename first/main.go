@@ -7,8 +7,8 @@ import (
 
 func main() {
 	http.HandleFunc("/file/upload",handle.Upload)
-	http.HandleFunc("/file/upload/suc", handle.UploadHandle)
-	http.HandleFunc("/file/meta", handle.GetFileMetaHeader)
+	//http.HandleFunc("/file/upload/suc", handle.UploadHandle)
+	http.HandleFunc("/file/query", handle.GetFileMetaHeader)
 	http.HandleFunc("/user/signup", handle.SignupHandle)
 	http.HandleFunc("/user/signup/suc", handle.Signup)
 	http.HandleFunc("/user/signin", handle.SigninHandle)

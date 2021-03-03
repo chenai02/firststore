@@ -94,10 +94,11 @@
 
   function updateFileList() {
     $.ajax({
+      <!--url: "/file/query?" + queryParams(),-->
       url: "/file/query?" + queryParams(),
       type: "POST",
       data: {
-        limit: 15
+        username:localStorage.getItem("username"),
       },
       error: function (jqXHR, textStatus, errorThrown) {
         if (textStatus == "error") {
@@ -144,6 +145,7 @@
 
   function toUploadFile() {
     window.location.href = '/file/upload?' + queryParams();
+
   }
 
   function downloadFile(durl) {

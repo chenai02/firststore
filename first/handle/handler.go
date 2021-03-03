@@ -20,9 +20,12 @@ func Upload(w http.ResponseWriter, r *http.Request){
 			io.WriteString(w, "internel server error")
 			return
 		}
+		r.ParseForm()
+		username := r.Form.Get("username")
+		//fmt.Println("currentUser1:", username)
+		SetCurrentUser(username)
 		io.WriteString(w, string(data))
 	}else if r.Method == "POST" {
-		r.ParseForm()
 		//返回POST页面
 		file, head, err := r.FormFile("file")
 		if err != nil {
@@ -39,7 +42,6 @@ func Upload(w http.ResponseWriter, r *http.Request){
 			UploadAt:time.Now(),
 		}
 		//fmt.Println("FileName:", filename[len(filename)-1])
-		fmt.Println("FileName:", head.Filename)
 		dst ,err:= os.Create(fileMeta.Location)
 		if err != nil {
 			fmt.Printf("create file failed, err:%v", err)
@@ -58,10 +60,12 @@ func Upload(w http.ResponseWriter, r *http.Request){
 		db.SetFileDB(fileMeta)
 		//更新用户文件表记录
 		//因为js本身问题，导致无法获取当前表单信息，这样做有一个缺陷，无法开多个窗口
-		//username := GetCurrentUser()
-		username := r.Form.Get("username")
-		fmt.Println("currentUser:", username)
+		username := GetCurrentUser()
+		//r.ParseForm()
+		//username := r.Form.Get("username")
+		//fmt.Println("currentUser2:", username)
 		ok := db.OnupLoadFile(username, fileMeta.FileSha1, fileMeta.FileName, fileMeta.FileSize, fileMeta.UploadAt)
+		DeleteCurrentUser()
 		if ok {
 			http.Redirect(w, r, "/static/view/home.html", http.StatusFound)
 		}else{
@@ -79,15 +83,23 @@ func UploadSave(w http.ResponseWriter, r *http.Request){
 }
 
 func GetFileMetaHeader(w http.ResponseWriter, r *http.Request){
-	r.ParseForm()
-	fileHash := r.Form["fileHash"][0]
-	//fileMeta := meta.GetFileMeta(filName)
-	fileMeta := db.GetFileDb(fileHash)
-	data, err := json.Marshal(fileMeta)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+	if r.Method == http.MethodPost {
+		//fileHash := r.Form["fileHash"][0]
+		//fileMeta := meta.GetFileMeta(filName)
+		//fileMeta := db.GetFileDb(fileHash)
+		r.ParseForm()
+		username := r.Form.Get("username")
+		user_file, ok := db.QueryUserFiles(username, 10)
+		if !ok {
+			fmt.Println("get userFile failed")
+			return
+		}
+		data, err := json.Marshal(user_file)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Write(data)
 	}
-	w.Write(data)
 }
 

@@ -1,10 +1,9 @@
 package handle
 
-import(
+import (
 	"context"
 	"fmt"
 	"github.com/go-redis/redis/v8"
-	"time"
 )
 var ctx = context.Background()
 var redisdb *redis.Client
@@ -22,7 +21,7 @@ func SetCurrentUser(username string){
 	if err != nil {
 		fmt.Println("connect redis failed")
 	}
-	err = redisdb.Set(ctx, "currentuser", username, 100*time.Minute).Err()
+	err = redisdb.Set(ctx, "currentuser", username, 0).Err()
 	if err != nil {
 		fmt.Println("Set data to redis failed")
 	}
@@ -40,4 +39,15 @@ func GetCurrentUser()string{
 	}
 	return redisdb.Get(ctx,"currentuser").Val()
 
+}
+func DeleteCurrentUser(){
+	redis_init()
+	err := redisdb.Ping(ctx).Err()
+	if err != nil {
+		fmt.Println("connect redis failed")
+	}
+	err = redisdb.Del(ctx,"currentuser").Err()
+	if err != nil {
+		fmt.Println("Get data from redis failed")
+	}
 }
