@@ -9,11 +9,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 )
 
-func Upload(w http.ResponseWriter, r *http.Request){
-	if r.Method == "GET"{
+func Upload(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
 		//返回html页面
 		data, err := ioutil.ReadFile("./static/view/index.html")
 		if err != nil {
@@ -25,7 +26,7 @@ func Upload(w http.ResponseWriter, r *http.Request){
 		//fmt.Println("currentUser1:", username)
 		SetCurrentUser(username)
 		io.WriteString(w, string(data))
-	}else if r.Method == "POST" {
+	} else if r.Method == "POST" {
 		//返回POST页面
 		file, head, err := r.FormFile("file")
 		if err != nil {
@@ -36,13 +37,13 @@ func Upload(w http.ResponseWriter, r *http.Request){
 		//D:\GoPath\src\Go\filestore\first
 		//filename := strings.Split(head.Filename, "\\")
 		fileMeta := db.FileMeta{
-			FileName:head.Filename,
+			FileName: head.Filename,
 			//Location:"d:/GoPath/src/Go/filestore/first/"+filename[len(filename)-1],
-			Location:"d:/GoPath/src/Go/filestore/first/"+head.Filename,
-			UploadAt:time.Now(),
+			Location: "d:/GoPath/src/Go/filestore/first/" + head.Filename,
+			UploadAt: time.Now(),
 		}
 		//fmt.Println("FileName:", filename[len(filename)-1])
-		dst ,err:= os.Create(fileMeta.Location)
+		dst, err := os.Create(fileMeta.Location)
 		if err != nil {
 			fmt.Printf("create file failed, err:%v", err)
 			return
@@ -68,21 +69,17 @@ func Upload(w http.ResponseWriter, r *http.Request){
 		DeleteCurrentUser()
 		if ok {
 			http.Redirect(w, r, "/static/view/home.html", http.StatusFound)
-		}else{
+		} else {
 			w.Write([]byte("Upload Failed."))
 		}
 	}
 }
 
-func UploadHandle(w http.ResponseWriter, r *http.Request){
-
-}
-
-func UploadSave(w http.ResponseWriter, r *http.Request){
+func UploadSave(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "upload success")
 }
 
-func GetFileMetaHeader(w http.ResponseWriter, r *http.Request){
+func GetFileMetaHeader(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		//fileHash := r.Form["fileHash"][0]
 		//fileMeta := meta.GetFileMeta(filName)
@@ -103,3 +100,40 @@ func GetFileMetaHeader(w http.ResponseWriter, r *http.Request){
 	}
 }
 
+func TryFastUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		r.ParseForm()
+		// 1. 解析请求参数
+		username := r.Form.Get("username")
+		filehash := r.Form.Get("filehash")
+		filename := r.Form.Get("filename")
+		filesize, _ := strconv.Atoi(r.Form.Get("filesize"))
+		// 2. 从文件表中查询相同hash的文件记录
+		file_db := db.GetFileDb(filehash)
+		// 3. 查不到记录则返回秒传失败
+		if file_db.File_sha1 != filehash {
+			resp := util.RespMsg{
+				Code: -1,
+				Msg:  "秒传失败，请访问普通上传接口",
+			}
+			w.Write(resp.JSONBytes())
+			return
+		}
+		t := time.Now()
+		ok := db.OnupLoadFile(username, filehash, filename, int64(filesize), t)
+		if ok {
+			resp := util.RespMsg{
+				Code: 0,
+				Msg:  "秒传成功",
+			}
+			w.Write(resp.JSONBytes())
+			return
+		}
+		resp := util.RespMsg{
+			Code: -2,
+			Msg:  "秒传失败，请稍后重试",
+		}
+		w.Write(resp.JSONBytes())
+		return
+	}
+}

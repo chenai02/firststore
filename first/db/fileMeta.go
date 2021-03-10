@@ -10,14 +10,19 @@ type FileMeta struct {
 	Location string
 	UploadAt time.Time
 }
+
 var fileMeta map[string]FileMeta
-func Init(){
+
+func Init() {
 	fileMeta = make(map[string]FileMeta)
 }
 
 func GetFileMeta(filename string) FileMeta {
 	return fileMeta[filename]
 }
-func SetFileMeta(fileMeta1 FileMeta){
+func GetFileHashMeta(filehash string) FileMeta {
+	return fileMeta[filehash]
+}
+func SetFileMeta(fileMeta1 FileMeta) {
 	fileMeta[fileMeta1.FileSha1] = fileMeta1
 }
