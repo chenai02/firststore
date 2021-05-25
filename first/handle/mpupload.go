@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -41,13 +42,13 @@ func InitialMultipartUploadInfohandle(w http.ResponseWriter, r *http.Request)  {
 		FileHash:   filehash,
 		FileSize:   filesize,
 		UploadID:   username + fmt.Sprintf("%x", time.Now().UnixNano()),
-		ChunkSzie:  5 * 1024 * 1024, //5MB
-		ChunkCount: int(math.Ceil(float64(filesize)/(5 * 1024 * 1024))),
+		ChunkSzie:  1048576, //1MB
+		ChunkCount: int(math.Ceil(float64(filesize)/(1048576))),
 	}
 	//4.将初始化信息写入redis连接池中
-	conn.Do("HSET", "MP_" + upinfo.UploadID, "filehash", upinfo.FileHash)
-	conn.Do("HSET", "MP_" + upinfo.UploadID, "filesize", upinfo.ChunkSzie)
-	conn.Do("HSET", "MP_" + upinfo.UploadID, "chunkcount", upinfo.ChunkCount)
+	conn.Do("HMSET", "MP_" + upinfo.UploadID, "filehash", upinfo.FileHash)
+	conn.Do("HMSET", "MP_" + upinfo.UploadID, "filesize", upinfo.ChunkSzie)
+	conn.Do("HMSET", "MP_" + upinfo.UploadID, "chunkcount", upinfo.ChunkCount)
 	//5.将响应初始化数据返回到客户端
 	w.Write(util.NewRespMsg(0, "OK", upinfo).JSONBytes())
 	
@@ -64,7 +65,14 @@ func UploadPartHandle(w http.ResponseWriter, r *http.Request){
 	conn := redis.RedisPool().Get()
 	defer conn.Close()
 	//3.创建一个文件句柄用以接收分块文件
-	fd, err := os.Create("d:/GoPath/src/Go/filestore/first/tmp/"+ uploadid+"/"+chunkindex)
+	fmt.Println("uploadid:", uploadid, "chunkindex:", chunkindex)
+	fpath := "d:/GoPath/src/Go/filestore/first/tmp/" + uploadid + "/" + chunkindex
+	err := os.MkdirAll(path.Dir(fpath), 0744)
+	if err != nil {
+		fmt.Println("create directory failed, err:", err)
+		return
+	}
+	fd, err := os.Create(fpath)
 	if err != nil {
 		w.Write(util.NewRespMsg(-1, "Upload part failed", nil).JSONBytes())
 		return
@@ -79,7 +87,7 @@ func UploadPartHandle(w http.ResponseWriter, r *http.Request){
 		}
 	}
 	//4.更新redis状态  1代表这一部分完成上传
-	conn.Do("HSET", "MP_"+ uploadid, "chunkindex_" + chunkindex, 1)
+	conn.Do("HMSET", "MP_"+ uploadid, "chunkindex_" + chunkindex, 1)
 	//5.返回客户端
 	w.Write(util.NewRespMsg(0, "OK", nil).JSONBytes())
 }
@@ -114,6 +122,7 @@ func CompleteUploadHandle(w http.ResponseWriter, r *http.Request){
 		}else if strings.HasPrefix(k, "chunkindex_") && v == "1"{
 				chunkCount ++
 		}
+		fmt.Println("totalCount:", totalCount, "chunkCount", chunkCount)
 	}
 	if totalCount != chunkCount{
 		w.Write(util.NewRespMsg(-2, "invalid request", nil).JSONBytes())
